@@ -6,7 +6,19 @@ use the appropriate crawl method, chunk the resulting Markdown into <1000 charac
 and insert all chunks into ChromaDB with metadata.
 
 Usage:
-    python insert_docs.py <URL> [--collection ...] [--db-dir ...] [--embedding-model ...]
+    python insert_docs.py <URL> [--collection COLLECTION] [--db-dir DB_DIR] [--chunk-size CHUNK_SIZE]
+                          [--max-depth MAX_DEPTH] [--max-concurrent MAX_CONCURRENT]
+                          [--batch-size BATCH_SIZE] [--rag-service-url RAG_SERVICE_URL]
+
+Arguments:
+    URL                     URL to crawl (regular, .txt, or sitemap)
+    --collection            ChromaDB collection name (default: docs)
+    --db-dir                ChromaDB directory path (passed to RAG service)
+    --chunk-size            Max chunk size in characters (default: 1000)
+    --max-depth             Recursion depth for regular URLs (default: 3)
+    --max-concurrent        Max parallel browser sessions (default: 10)
+    --batch-size            RAG service insert batch size (default: 100)
+    --rag-service-url       RAG service URL (default: http://localhost:8000)
 """
 import argparse
 import sys
@@ -33,6 +45,7 @@ async def main():
     parser = argparse.ArgumentParser(description="Insert crawled docs into ChromaDB via RAG service")
     parser.add_argument("url", help="URL to crawl (regular, .txt, or sitemap)")
     parser.add_argument("--collection", default="docs", help="ChromaDB collection name")
+    parser.add_argument("--db-dir", default=None, help="ChromaDB directory path (passed to RAG service)")
     parser.add_argument("--chunk-size", type=int, default=1000, help="Max chunk size (chars)")
     parser.add_argument("--max-depth", type=int, default=3, help="Recursion depth for regular URLs")
     parser.add_argument("--max-concurrent", type=int, default=10, help="Max parallel browser sessions")
@@ -107,7 +120,8 @@ async def main():
             documents=batch_docs,
             metadatas=batch_meta,
             ids=batch_ids,
-            collection_name=args.collection
+            collection_name=args.collection,
+            db_dir=args.db_dir
         )
         
         if result["success"]:

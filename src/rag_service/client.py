@@ -186,7 +186,8 @@ class RAGServiceClient:
         documents: List[str],
         metadatas: List[Dict[str, Any]],
         ids: List[str],
-        collection_name: str = "docs"
+        collection_name: str = "docs",
+        db_dir: Optional[str] = None
     ) -> Dict[str, Any]:
         """Insert documents into the RAG service.
         
@@ -207,14 +208,20 @@ class RAGServiceClient:
                 return {"success": False, "message": error_msg, "count": 0}
                 
             session = self.get_session()
+            # Create payload and add db_dir if provided
+            payload = {
+                "documents": documents,
+                "metadatas": metadatas,
+                "ids": ids,
+                "collection_name": collection_name
+            }
+            
+            if db_dir:
+                payload["db_dir"] = db_dir
+                
             async with session.post(
                 f"{self.base_url}/insert-documents",
-                json={
-                    "documents": documents,
-                    "metadatas": metadatas,
-                    "ids": ids,
-                    "collection_name": collection_name
-                },
+                json=payload,
                 timeout=60
             ) as response:
                 if response.status == 200:

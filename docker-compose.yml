@@ -8,8 +8,7 @@ services:
       - PORT=4000
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - DEFAULT_MODEL=gemini-2.0-flash
-      # Add verbose logging to debug issues
-      - LITELLM_LOG_LEVEL=debug
+      - LITELLM_LOG_LEVEL=info  # Changed from debug to reduce log volume
     volumes:
       - ./litellm_config.yaml:/app/config/config.yaml
     command: ["--config", "/app/config/config.yaml", "--port", "4000"]
@@ -18,12 +17,23 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # Add resource constraints
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
       
   # Dedicated RAG service
   rag-service:
     build:
       context: .
       dockerfile: ./src/rag_service/Dockerfile
+      # Add build args if needed
+      args:
+        - BUILDKIT_INLINE_CACHE=1  # Enable BuildKit inline caching
     ports:
       - "8000:8000"
     environment:
@@ -43,61 +53,78 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # Add resource constraints
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1'
+        reservations:
+          memory: 1G
 
+  # Streamlit app service
   rag-app:
     build:
       context: .
       dockerfile: Dockerfile
+      target: streamlit  # Use the streamlit target from multi-stage build
     ports:
       - "8501:8501"  # For Streamlit app
     volumes:
       - ./src:/app/src  # Mount source code for development
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}  # Pass Google API key from host
-      - GEMINI_API_KEY=${GOOGLE_API_KEY}  # Map Google API key to Gemini API key for pydantic-ai
-      - MODEL_NAME=${MODEL_NAME:-gemini-2.0-flash}  # Use Gemini model
-      - LITELLM_API_BASE=http://litellm:4000  # Point to LiteLLM service
-      - RAG_SERVICE_URL=http://rag-service:8000  # Point to RAG service
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_API_KEY=${GOOGLE_API_KEY}
+      - MODEL_NAME=${MODEL_NAME:-gemini-2.0-flash}
+      - LITELLM_API_BASE=http://litellm:4000
+      - RAG_SERVICE_URL=http://rag-service:8000
     depends_on:
       litellm:
         condition: service_healthy
       rag-service:
         condition: service_healthy
     command: streamlit run src/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+    # Add resource constraints
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
   
   # Service for running insert_docs.py with optimized Playwright settings
   crawler:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./src/crawler/Dockerfile  # Use the dedicated crawler Dockerfile
     volumes:
       - ./src:/app/src  # Mount source code for development
     environment:
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}  # Pass Google API key from host
-      - GEMINI_API_KEY=${GOOGLE_API_KEY}  # Map Google API key to Gemini API key for pydantic-ai
-      - MODEL_NAME=${MODEL_NAME:-gemini-2.0-flash}  # Use Gemini model
-      - LITELLM_API_BASE=http://litellm:4000  # Point to LiteLLM service
-      - RAG_SERVICE_URL=http://rag-service:8000  # Point to RAG service
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_API_KEY=${GOOGLE_API_KEY}
+      - MODEL_NAME=${MODEL_NAME:-gemini-2.0-flash}
+      - LITELLM_API_BASE=http://litellm:4000
+      - RAG_SERVICE_URL=http://rag-service:8000
       # Playwright specific environment variables
-      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright  # Use pre-installed browsers
-      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1  # Skip browser download since they're pre-installed
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
     depends_on:
       litellm:
         condition: service_healthy
       rag-service:
         condition: service_healthy
-    # Resource constraints to ensure stability
+    # Resource constraints - reduced from previous values
     deploy:
       resources:
         limits:
-          memory: 6G  # Increased memory limit
-          cpus: '2'   # Limit to 2 CPUs
+          memory: 4G  # Reduced from 6G
+          cpus: '1'   # Reduced from 2 CPUs
         reservations:
-          memory: 3G  # Increased memory reservation
+          memory: 2G  # Reduced from 3G
     # Increased shared memory size for Playwright
-    shm_size: 4gb
+    shm_size: 2gb  # Reduced from 4gb
     # This service doesn't start automatically
-    # Use docker-compose run crawler python src/insert_docs.py <URL> --db-dir /data/chroma_db
     entrypoint: ["python", "src/insert_docs.py"]
     command: ["--help"]  # Default command shows help
 
