@@ -161,6 +161,15 @@ async def main():
         st.session_state.messages = []
     if "contexts" not in st.session_state:
         st.session_state.contexts = {}
+    if "clear_conversation" not in st.session_state:
+        st.session_state.clear_conversation = False
+        
+    # Handle clear conversation flag
+    if st.session_state.clear_conversation:
+        # Reset the flag
+        st.session_state.clear_conversation = False
+        # Force a rerun to refresh the UI
+        st.rerun()
 
     # Check if RAG service is healthy
     service_status = await check_rag_service_health()
@@ -219,9 +228,10 @@ async def main():
         
         # Clear chat history button
         if st.button("Clear Chat History"):
+            # Use session state to trigger a rerun instead of calling st.experimental_rerun() directly
             st.session_state.messages = []
             st.session_state.contexts = {}
-            st.experimental_rerun()
+            st.session_state.clear_conversation = True
 
 
 # Initialize the page configuration outside of the main function
