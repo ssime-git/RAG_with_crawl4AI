@@ -1,0 +1,105 @@
+services:
+  # LiteLLM server as a dedicated service
+  litellm:
+    image: ghcr.io/berriai/litellm:main-latest
+    ports:
+      - "8008:4000"
+    environment:
+      - PORT=4000
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - DEFAULT_MODEL=gemini-2.0-flash
+      # Add verbose logging to debug issues
+      - LITELLM_LOG_LEVEL=debug
+    volumes:
+      - ./litellm_config.yaml:/app/config/config.yaml
+    command: ["--config", "/app/config/config.yaml", "--port", "4000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      
+  # Dedicated RAG service
+  rag-service:
+    build:
+      context: .
+      dockerfile: ./src/rag_service/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GEMINI_API_KEY=${GOOGLE_API_KEY}
+      - LITELLM_API_BASE=http://litellm:4000
+      - MODEL_NAME=gemini-2.0-flash
+      - DB_DIR=/app/chroma_db
+      - EMBEDDING_MODEL=all-MiniLM-L6-v2
+    volumes:
+      - chroma_data:/app/chroma_db
+    depends_on:
+      litellm:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rag-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"  # For Streamlit app
+    volumes:
+      - ./src:/app/src  # Mount source code for development
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}  # Pass Google API key from host
+      - GEMINI_API_KEY=${GOOGLE_API_KEY}  # Map Google API key to Gemini API key for pydantic-ai
+      - MODEL_NAME=${MODEL_NAME:-gemini-2.0-flash}  # Use Gemini model
+      - LITELLM_API_BASE=http://litellm:4000  # Point to LiteLLM service
+      - RAG_SERVICE_URL=http://rag-service:8000  # Point to RAG service
+    depends_on:
+      litellm:
+        condition: service_healthy
+      rag-service:
+        condition: service_healthy
+    command: streamlit run src/streamlit_app.py --server.port=8501 --server.address=0.0.0.0
+  
+  # Service for running insert_docs.py with optimized Playwright settings
+  crawler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/app/src  # Mount source code for development
+    environment:
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}  # Pass Google API key from host
+      - GEMINI_API_KEY=${GOOGLE_API_KEY}  # Map Google API key to Gemini API key for pydantic-ai
+      - MODEL_NAME=${MODEL_NAME:-gemini-2.0-flash}  # Use Gemini model
+      - LITELLM_API_BASE=http://litellm:4000  # Point to LiteLLM service
+      - RAG_SERVICE_URL=http://rag-service:8000  # Point to RAG service
+      # Playwright specific environment variables
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright  # Use pre-installed browsers
+      - PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1  # Skip browser download since they're pre-installed
+    depends_on:
+      litellm:
+        condition: service_healthy
+      rag-service:
+        condition: service_healthy
+    # Resource constraints to ensure stability
+    deploy:
+      resources:
+        limits:
+          memory: 6G  # Increased memory limit
+          cpus: '2'   # Limit to 2 CPUs
+        reservations:
+          memory: 3G  # Increased memory reservation
+    # Increased shared memory size for Playwright
+    shm_size: 4gb
+    # This service doesn't start automatically
+    # Use docker-compose run crawler python src/insert_docs.py <URL> --db-dir /data/chroma_db
+    entrypoint: ["python", "src/insert_docs.py"]
+    command: ["--help"]  # Default command shows help
+
+volumes:
+  chroma_data:  # Named volume for persisting ChromaDB data

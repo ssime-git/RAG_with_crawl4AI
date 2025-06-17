@@ -1,4 +1,4 @@
-"""Pydantic AI agent that leverages RAG with a local ChromaDB for Pydantic documentation."""
+"""Pydantic AI agent that leverages RAG with a local ChromaDB for documentation."""
 
 import os
 import sys
@@ -11,22 +11,22 @@ import chromadb
 import dotenv
 from pydantic_ai import RunContext
 from pydantic_ai.agent import Agent
-from openai import AsyncOpenAI
 
-from utils import (
+from db.chroma_client import (
     get_chroma_client,
     get_or_create_collection,
     query_collection,
     format_results_as_context
 )
+from llm.client import LLMClient
 
 # Load environment variables from .env file
 dotenv.load_dotenv()
 
-# Check for OpenAI API key
-if not os.getenv("OPENAI_API_KEY"):
-    print("Error: OPENAI_API_KEY environment variable not set.")
-    print("Please create a .env file with your OpenAI API key or set it in your environment.")
+# Check for Google API key
+if not os.getenv("GOOGLE_API_KEY"):
+    print("Error: GOOGLE_API_KEY environment variable not set.")
+    print("Please create a .env file with your Google API key or set it in your environment.")
     sys.exit(1)
 
 
@@ -40,7 +40,7 @@ class RAGDeps:
 
 # Create the RAG agent
 agent = Agent(
-    os.getenv("MODEL_CHOICE", "gpt-4.1-mini"),
+    os.getenv("MODEL_NAME", "gemini-2.0-flash"),
     deps_type=RAGDeps,
     system_prompt="You are a helpful assistant that answers questions based on the provided documentation. "
                   "Use the retrieve tool to get relevant information from the documentation before answering. "
@@ -79,6 +79,26 @@ async def retrieve(context: RunContext[RAGDeps], search_query: str, n_results: i
     return format_results_as_context(query_results)
 
 
+@agent.tool
+async def generate_with_litellm(context: RunContext[RAGDeps], prompt: str, system_prompt: str = None) -> str:
+    """Generate text using LiteLLM with Gemini 2 Flash.
+    
+    Args:
+        context: The run context containing dependencies.
+        prompt: The prompt to generate text from.
+        system_prompt: Optional system prompt to guide the generation.
+        
+    Returns:
+        Generated text from the LLM.
+    """
+    return await LLMClient.generate(
+        prompt=prompt,
+        system_prompt=system_prompt,
+        temperature=0.7,
+        max_tokens=1000
+    )
+
+
 async def run_rag_agent(
     question: str,
     collection_name: str = "docs",
@@ -86,7 +106,7 @@ async def run_rag_agent(
     embedding_model: str = "all-MiniLM-L6-v2",
     n_results: int = 5
 ) -> str:
-    """Run the RAG agent to answer a question about Pydantic AI.
+    """Run the RAG agent to answer a question.
     
     Args:
         question: The question to answer.
