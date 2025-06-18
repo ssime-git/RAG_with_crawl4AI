@@ -4,17 +4,24 @@ This document explains how to run the RAG with Crawl4AI application using Docker
 
 ## Prerequisites
 
+Make sure you have at least 10GB of disk space available on your machine. As well as :
+
+- 16GB RAM
+- Python 3.13 or higher
 - [Docker](https://docs.docker.com/get-docker/)
 - [Docker Compose](https://docs.docker.com/compose/install/)
-- Google API key (for the Gemini 2 Flash model)
+- A model API key.
 
 ## Setup
 
 1. Create a `.env` file in the project root with your Google API key:
 
-```
+```sh
 GOOGLE_API_KEY=your_google_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
+
+if you add a model API key make sure to update the `docker-compose.yml` accordingly.
 
 2. Build the Docker images:
 
