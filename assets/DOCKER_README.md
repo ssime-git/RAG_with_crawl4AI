@@ -56,10 +56,10 @@ docker-compose run --rm crawler https://example.com --db-dir /data/chroma_db
 Start the Streamlit application:
 
 ```bash
-docker-compose up rag-app
+docker-compose up -d
 ```
 
-Then access the application in your browser at: http://localhost:8501
+Then access the application in your browser at: `http://localhost:8501`
 
 ### Stopping the Application
 

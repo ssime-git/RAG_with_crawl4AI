@@ -1,6 +1,6 @@
 # RAG_with_crawl4AI
 
-A modular Retrieval-Augmented Generation (RAG) system with web crawling capabilities for building AI-powered knowledge bases from websites.
+A dockerized modular Retrieval-Augmented Generation (RAG) system with web crawling capabilities for building AI-powered knowledge bases from websites.
 
 ## System Architecture
 
@@ -13,10 +13,10 @@ A modular Retrieval-Augmented Generation (RAG) system with web crawling capabili
 └─────────────┘     └──────┬──────┘     └─────────────────────┘
                            │                       ▲
                            ▼                       │
-                    ┌─────────────┐       ┌───────┴───────┐
+                    ┌─────────────┐       ┌────────┴──────┐
                     │             │       │               │
-                    │  ChromaDB  │       │  LiteLLM API  │
-                    │  Vector DB │       │               │
+                    │  ChromaDB   │       │  LiteLLM API  │
+                    │  Vector DB  │       │               │
                     │             │       │               │
                     └─────────────┘       └───────────────┘
 ```
