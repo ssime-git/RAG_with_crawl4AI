@@ -1,15 +1,23 @@
-# LiteLLM configuration for Gemini models
+# LiteLLM configuration for multiple model providers
 model_list:
+  # Gemini models
   - model_name: gemini/gemini-2.0-flash
     litellm_params:
       model: gemini/gemini-2.0-flash
       api_key: "os.environ/GOOGLE_API_KEY"
   
-  # Add an alias without the gemini/ prefix for backward compatibility
+  # Alias for backward compatibility
   - model_name: gemini-2.0-flash
     litellm_params:
       model: gemini/gemini-2.0-flash
       api_key: "os.environ/GOOGLE_API_KEY"
+  
+  # Mistral model via OpenRouter
+  - model_name: mistral/devstral-small
+    litellm_params:
+      model: openrouter/mistralai/devstral-small:free
+      api_key: "os.environ/OPENROUTER_API_KEY"
+      api_base: "https://openrouter.ai/api/v1"
 
 litellm_settings:
   drop_params: true
