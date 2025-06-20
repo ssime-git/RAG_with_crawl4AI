@@ -15,7 +15,7 @@ A dockerized modular Retrieval-Augmented Generation (RAG) system with web crawli
                            ▼                       │
                     ┌─────────────┐       ┌────────┴──────┐
                     │             │       │               │
-                    │  ChromaDB   │       │  LiteLLM API  │
+                    │  ChromaDB   │────▶  │  LiteLLM API  │
                     │  Vector DB  │       │               │
                     │             │       │               │
                     └─────────────┘       └───────────────┘
